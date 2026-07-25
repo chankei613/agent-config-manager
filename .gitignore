@@ -1,0 +1,8 @@
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+/acmscan
+build/bin/
+frontend/dist/
+frontend/node_modules/
