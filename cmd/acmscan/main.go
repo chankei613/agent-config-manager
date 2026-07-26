@@ -95,6 +95,7 @@ func report(files []config.File, stats *inventory.SyncStats, errs []string) {
 	byKind := map[config.Kind]int{}
 	byProject := map[string]int{}
 	symlinks := 0
+	viaSymlink := 0
 
 	for _, f := range files {
 		byKind[f.Kind]++
@@ -103,6 +104,9 @@ func report(files []config.File, stats *inventory.SyncStats, errs []string) {
 		}
 		if f.IsSymlink {
 			symlinks++
+		}
+		if f.ViaSymlink {
+			viaSymlink++
 		}
 	}
 
@@ -120,7 +124,17 @@ func report(files []config.File, stats *inventory.SyncStats, errs []string) {
 	}
 
 	if symlinks > 0 {
-		fmt.Printf("\nうちシンボリックリンク: %d 件（実体を壊さないよう書き込み時は要注意）\n", symlinks)
+		fmt.Printf("\nシンボリックリンクそのもの: %d 件\n", symlinks)
+	}
+	if viaSymlink > 0 {
+		// ここへ書くと離れた場所の実体が書き換わる。Phase 4（書き込み系）の最重要情報。
+		fmt.Printf("\n⚠️  親がリンクのファイル: %d 件（このパスへ書くと実体側が書き換わる）\n", viaSymlink)
+		for _, f := range files {
+			if f.ViaSymlink {
+				fmt.Printf("    例: %s\n      → 実体 %s\n", f.Path, f.RealPath)
+				break
+			}
+		}
 	}
 
 	if len(byProject) > 0 {
