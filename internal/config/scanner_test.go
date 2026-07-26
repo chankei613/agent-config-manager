@@ -270,6 +270,42 @@ func TestScanSkipsPluginVendorFiles(t *testing.T) {
 	}
 }
 
+// 設定と無関係の巨大ツリーへのリンク（例: ~/.claude/mcp_mini → Dropbox全体）は辿らない。
+// 辿ると毎回のスキャンでワークスペース全体を走査してしまう。
+func TestScanDoesNotFollowUnknownDirectorySymlinks(t *testing.T) {
+	dir := t.TempDir()
+	claude := filepath.Join(dir, ".claude")
+	outside := filepath.Join(dir, "workspace")
+
+	writeFile(t, filepath.Join(claude, "settings.json"), `{}`)
+	writeFile(t, filepath.Join(outside, "some-project", "CLAUDE.md"), "無関係のプロジェクト")
+
+	// 既知の名前ではないリンク → 辿らない
+	if err := os.Symlink(outside, filepath.Join(claude, "mcp_mini")); err != nil {
+		t.Skipf("symlinks unsupported here: %v", err)
+	}
+	// 既知の名前のリンク → 辿る
+	realWorkers := filepath.Join(dir, "obsidian", "workers")
+	writeFile(t, filepath.Join(realWorkers, "worker-a.md"), "a")
+	if err := os.Symlink(realWorkers, filepath.Join(claude, "agents")); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := ScanUserScope(claude)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(res.Files) != 2 {
+		t.Fatalf("got %d files, want 2 (settings.json と agents配下のみ): %+v", len(res.Files), res.Files)
+	}
+	for _, f := range res.Files {
+		if strings.Contains(f.Path, "workspace") {
+			t.Errorf("設定と無関係のリンク先まで走査している: %s", f.Path)
+		}
+	}
+}
+
 // リンクがループしていても走査が止まること
 func TestScanSurvivesSymlinkLoop(t *testing.T) {
 	dir := t.TempDir()

@@ -186,6 +186,12 @@ func walkDir(dir, base string, scope Scope, projectName string, res *Result, vis
 			if skipDirs[entry.Name()] {
 				continue
 			}
+			// ディレクトリへのリンクを無条件に辿ると、`~/.claude/workspace → <Dropbox全体>`
+			// のような「設定とは無関係の巨大なツリーへのリンク」まで走査してしまう。
+			// 辿るのは設定群を表す既知の名前（agents/commands/skills）に限る。
+			if entry.Type()&os.ModeSymlink != 0 && !isConfigDirName(entry.Name()) {
+				continue
+			}
 			walkDir(path, base, scope, projectName, res, visited, depth+1)
 			continue
 		}

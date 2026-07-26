@@ -85,6 +85,13 @@ var configDirKinds = map[string]Kind{
 	"skills":   KindSkill,
 }
 
+// isConfigDirName は「設定群を表す既知のディレクトリ名」かを返す。
+// シンボリックリンクを辿ってよいかの判断に使う。
+func isConfigDirName(name string) bool {
+	_, ok := configDirKinds[name]
+	return ok
+}
+
 // kindForDanglingLink は到達できないリンクの種別を決める。
 // ディレクトリ名で判る場合はそれを使い、判らなければ通常の分類にフォールバックする。
 func kindForDanglingLink(rel string) Kind {
