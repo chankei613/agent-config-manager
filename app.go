@@ -8,6 +8,7 @@ import (
 	"github.com/chankei613/agent-config-manager/internal/api"
 	"github.com/chankei613/agent-config-manager/internal/db"
 	"github.com/chankei613/agent-config-manager/internal/inventory"
+	"github.com/chankei613/agent-config-manager/internal/snapshot"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"gorm.io/gorm"
 )
@@ -136,6 +137,63 @@ func (a *App) Rescan() (*inventory.SyncStats, error) {
 		return nil, errNotReady
 	}
 	return a.server.Rescan()
+}
+
+// ─── スナップショット（バージョン管理） ────────────────────────────────────────
+
+func (a *App) ListSnapshots() ([]db.Snapshot, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+	return snapshot.List(a.conn)
+}
+
+func (a *App) CreateSnapshot(label, note string) (*db.Snapshot, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+	return snapshot.Create(a.conn, label, note)
+}
+
+func (a *App) GetSnapshotEntries(id int) ([]snapshot.Entry, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+	return snapshot.Entries(a.conn, uint(id))
+}
+
+// PlanRestore は復元で何が起きるかを、何も書き換えずに返す。
+// UIは必ずこれを見せてから RestoreSnapshot を呼ぶこと。
+func (a *App) PlanRestore(id int) ([]snapshot.Change, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+	return snapshot.Plan(a.conn, uint(id))
+}
+
+// RestoreSnapshot は復元する。実行前に自動バックアップが取られるので取り消せる。
+func (a *App) RestoreSnapshot(id int) (*snapshot.RestoreResult, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+
+	result, err := snapshot.Restore(a.conn, uint(id))
+	if err != nil {
+		return nil, err
+	}
+
+	// 書き戻した内容をインベントリに反映する
+	if _, err := a.server.Rescan(); err != nil {
+		runtime.LogErrorf(a.ctx, "rescan after restore failed: %s", err)
+	}
+	return result, nil
+}
+
+func (a *App) DeleteSnapshot(id int) error {
+	if !a.ready {
+		return errNotReady
+	}
+	return snapshot.Delete(a.conn, uint(id))
 }
 
 // GetScanRoots は今どこを見ているかをUIに示す。

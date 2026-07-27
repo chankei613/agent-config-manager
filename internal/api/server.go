@@ -5,12 +5,15 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/chankei613/agent-config-manager/internal/config"
 	"github.com/chankei613/agent-config-manager/internal/db"
 	"github.com/chankei613/agent-config-manager/internal/inventory"
+	"github.com/chankei613/agent-config-manager/internal/snapshot"
 	"gorm.io/gorm"
 )
 
@@ -35,7 +38,110 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("GET /api/v1/files", s.listFiles)
 	mux.HandleFunc("POST /api/v1/rescan", s.rescan)
 
+	mux.HandleFunc("GET /api/v1/snapshots", s.listSnapshots)
+	mux.HandleFunc("POST /api/v1/snapshots", s.createSnapshot)
+	mux.HandleFunc("GET /api/v1/snapshots/{id}/entries", s.snapshotEntries)
+	mux.HandleFunc("GET /api/v1/snapshots/{id}/plan", s.planRestore)
+	mux.HandleFunc("POST /api/v1/snapshots/{id}/restore", s.restoreSnapshot)
+	mux.HandleFunc("DELETE /api/v1/snapshots/{id}", s.deleteSnapshot)
+
 	return mux
+}
+
+func snapshotID(r *http.Request) (uint, error) {
+	id, err := strconv.ParseUint(r.PathValue("id"), 10, 64)
+	return uint(id), err
+}
+
+func (s *Server) listSnapshots(w http.ResponseWriter, r *http.Request) {
+	snaps, err := snapshot.List(s.DB)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, snaps)
+}
+
+func (s *Server) createSnapshot(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Label string `json:"label"`
+		Note  string `json:"note"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+
+	snap, err := snapshot.Create(s.DB, body.Label, body.Note)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, snap)
+}
+
+func (s *Server) snapshotEntries(w http.ResponseWriter, r *http.Request) {
+	id, err := snapshotID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	entries, err := snapshot.Entries(s.DB, id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, entries)
+}
+
+// planRestore は「復元したら何が起きるか」を、何も書き換えずに返す。
+func (s *Server) planRestore(w http.ResponseWriter, r *http.Request) {
+	id, err := snapshotID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	changes, err := snapshot.Plan(s.DB, id)
+	if err != nil {
+		writeError(w, statusForSnapshotErr(err), err)
+		return
+	}
+	writeJSON(w, http.StatusOK, changes)
+}
+
+func (s *Server) restoreSnapshot(w http.ResponseWriter, r *http.Request) {
+	id, err := snapshotID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	result, err := snapshot.Restore(s.DB, id)
+	if err != nil {
+		writeError(w, statusForSnapshotErr(err), err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) deleteSnapshot(w http.ResponseWriter, r *http.Request) {
+	id, err := snapshotID(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err := snapshot.Delete(s.DB, id); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func statusForSnapshotErr(err error) int {
+	if errors.Is(err, snapshot.ErrNotFound) {
+		return http.StatusNotFound
+	}
+	return http.StatusInternalServerError
 }
 
 func (s *Server) getSummary(w http.ResponseWriter, r *http.Request) {

@@ -6,8 +6,9 @@ import OverviewView from '@/pages/OverviewView.vue'
 import MatrixView from '@/pages/MatrixView.vue'
 import DriftView from '@/pages/DriftView.vue'
 import OrphansView from '@/pages/OrphansView.vue'
+import SnapshotsView from '@/pages/SnapshotsView.vue'
 
-type Tab = 'overview' | 'matrix' | 'drift' | 'orphans'
+type Tab = 'overview' | 'matrix' | 'drift' | 'orphans' | 'snapshots'
 
 const inv = useInventoryStore()
 const tab = ref<Tab>('overview')
@@ -17,6 +18,7 @@ const tabs: { id: Tab; label: string }[] = [
   { id: 'matrix', label: '一覧' },
   { id: 'drift', label: '乖離' },
   { id: 'orphans', label: 'リンク切れ' },
+  { id: 'snapshots', label: 'バージョン' },
 ]
 
 onMounted(() => {
@@ -64,7 +66,8 @@ onMounted(() => {
         <OverviewView v-if="tab === 'overview'" />
         <MatrixView v-else-if="tab === 'matrix'" />
         <DriftView v-else-if="tab === 'drift'" />
-        <OrphansView v-else />
+        <OrphansView v-else-if="tab === 'orphans'" />
+        <SnapshotsView v-else />
       </template>
     </main>
   </div>

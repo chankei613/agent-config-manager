@@ -76,6 +76,44 @@ export interface SyncStats {
   total: number
 }
 
+
+export interface Snapshot {
+  id: number
+  label: string
+  note: string
+  file_count: number
+  created_at: string
+}
+
+export interface SnapshotEntry {
+  path: string
+  kind: string
+  project: string
+  hash: string
+  size: number
+}
+
+export type ChangeType = 'restore' | 'recreate' | 'unchanged' | 'extra'
+
+export interface Change {
+  type: ChangeType
+  path: string
+  kind: string
+  project: string
+  /** true なら、このパスへの書き込みは離れた場所の実体に届く */
+  via_symlink: boolean
+  real_path?: string
+}
+
+export interface RestoreResult {
+  restored: number
+  recreated: number
+  skipped: number
+  /** 復元直前の自動バックアップ。ここへ戻せば復元を取り消せる */
+  backup_id: number
+  errors: string[]
+}
+
 export interface ScanRoots {
   user: string
   projects: string[]
@@ -90,6 +128,12 @@ interface WailsBindings {
   GetFiles(kind: string, project: string): Promise<ConfigFile[]>
   Rescan(): Promise<SyncStats>
   GetScanRoots(): Promise<ScanRoots>
+  ListSnapshots(): Promise<Snapshot[]>
+  CreateSnapshot(label: string, note: string): Promise<Snapshot>
+  GetSnapshotEntries(id: number): Promise<SnapshotEntry[]>
+  PlanRestore(id: number): Promise<Change[]>
+  RestoreSnapshot(id: number): Promise<RestoreResult>
+  DeleteSnapshot(id: number): Promise<void>
 }
 
 function bindings(): WailsBindings | null {
@@ -154,6 +198,28 @@ export const api = {
 
   scanRoots: (): Promise<ScanRoots> =>
     bindings()?.GetScanRoots() ?? Promise.resolve({ user: '', projects: [] }),
+
+  snapshots: (): Promise<Snapshot[]> =>
+    bindings()?.ListSnapshots() ?? http<Snapshot[]>('/snapshots'),
+
+  createSnapshot: (label: string, note = ''): Promise<Snapshot> =>
+    bindings()?.CreateSnapshot(label, note) ??
+    http<Snapshot>('/snapshots', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label, note }),
+    }),
+
+  /** 復元で何が起きるかを、何も書き換えずに取得する */
+  planRestore: (id: number): Promise<Change[]> =>
+    bindings()?.PlanRestore(id) ?? http<Change[]>(`/snapshots/${id}/plan`),
+
+  restoreSnapshot: (id: number): Promise<RestoreResult> =>
+    bindings()?.RestoreSnapshot(id) ??
+    http<RestoreResult>(`/snapshots/${id}/restore`, { method: 'POST' }),
+
+  deleteSnapshot: (id: number): Promise<void> =>
+    bindings()?.DeleteSnapshot(id) ?? http<void>(`/snapshots/${id}`, { method: 'DELETE' }),
 }
 
 /** 種別の日本語表示名 */
