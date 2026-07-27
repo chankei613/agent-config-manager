@@ -10,9 +10,11 @@ function shortPath(path: string): string {
 </script>
 
 <template>
-  <div v-if="viewer.file || viewer.diff || viewer.loading || viewer.error" class="viewer-backdrop" @click.self="viewer.close()">
+  <div v-if="viewer.isOpen" class="viewer-backdrop" @click.self="viewer.close()">
     <div class="viewer">
       <header class="viewer-head">
+        <button v-if="viewer.canGoBack" class="back" @click="viewer.back()">← 一覧</button>
+
         <template v-if="viewer.file">
           <strong :title="viewer.file.path">{{ shortPath(viewer.file.path) }}</strong>
           <span class="meta">{{ kindLabel(viewer.file.kind) }}</span>
@@ -20,15 +22,39 @@ function shortPath(path: string): string {
         </template>
         <template v-else-if="viewer.diff">
           <strong>差分</strong>
-          <span class="meta">
-            +{{ viewer.diff.added }} / -{{ viewer.diff.deleted }}
-          </span>
+          <span class="meta">+{{ viewer.diff.added }} / -{{ viewer.diff.deleted }}</span>
         </template>
+        <template v-else-if="viewer.files.length">
+          <strong>{{ viewer.listTitle }}</strong>
+        </template>
+
         <button class="close" @click="viewer.close()">閉じる</button>
       </header>
 
-      <p v-if="viewer.loading" class="loading">読み込み中…</p>
-      <p v-else-if="viewer.error" class="error">{{ viewer.error }}</p>
+      <p v-if="viewer.loading" class="loading pad">読み込み中…</p>
+      <p v-else-if="viewer.error" class="error pad">{{ viewer.error }}</p>
+
+      <!-- ファイル一覧（同じ種別が複数あるとき） -->
+      <template v-else-if="!viewer.file && !viewer.diff && viewer.files.length">
+        <div class="list-filter">
+          <input v-model="viewer.filter" placeholder="名前で絞り込む" aria-label="絞り込み" />
+          <span class="meta">{{ viewer.filteredFiles.length }} / {{ viewer.files.length }} 件</span>
+        </div>
+
+        <ul class="file-list">
+          <li v-for="f in viewer.filteredFiles" :key="f.path">
+            <button class="file-row" :title="f.path" @click="viewer.openFile(f.path)">
+              <span class="file-name">{{ f.rel_path }}</span>
+              <span class="meta">{{ (f.size / 1024).toFixed(1) }} KB</span>
+              <span v-if="f.via_symlink" class="badge link">リンク経由</span>
+              <span v-if="f.broken" class="badge warn">リンク切れ</span>
+            </button>
+          </li>
+          <li v-if="viewer.filteredFiles.length === 0" class="empty pad">
+            該当するファイルがありません。
+          </li>
+        </ul>
+      </template>
 
       <!-- 1ファイル表示 -->
       <template v-else-if="viewer.file">
@@ -50,7 +76,7 @@ function shortPath(path: string): string {
         <p v-if="viewer.diff.masked" class="mask-note">
           秘密の値は伏せた状態で比較しています。
         </p>
-        <p v-if="viewer.diff.identical" class="verdict ok">
+        <p v-if="viewer.diff.identical" class="verdict ok pad">
           マスク後の内容は同一です（違いは秘密の値だけでした）。
         </p>
 
