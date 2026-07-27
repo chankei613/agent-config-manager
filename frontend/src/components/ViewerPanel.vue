@@ -46,8 +46,8 @@ function shortPath(path: string): string {
             <button class="file-row" :title="f.path" @click="viewer.openFile(f.path)">
               <span class="file-name">{{ f.rel_path }}</span>
               <span class="meta">{{ (f.size / 1024).toFixed(1) }} KB</span>
-              <span v-if="f.via_symlink" class="badge link">リンク経由</span>
-              <span v-if="f.broken" class="badge warn">リンク切れ</span>
+              <span v-if="f.via_symlink" class="badge info" :title="f.real_path">リンク</span>
+              <span v-if="f.broken" class="badge bad">リンク切れ</span>
             </button>
           </li>
           <li v-if="viewer.filteredFiles.length === 0" class="empty pad">
