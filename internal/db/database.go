@@ -19,6 +19,8 @@ func Init(path string) (*gorm.DB, error) {
 		&ConfigFile{},
 		&Snapshot{},
 		&SnapshotEntry{},
+		&Template{},
+		&TemplateEntry{},
 	); err != nil {
 		return nil, err
 	}

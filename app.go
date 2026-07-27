@@ -9,6 +9,7 @@ import (
 	"github.com/chankei613/agent-config-manager/internal/db"
 	"github.com/chankei613/agent-config-manager/internal/inventory"
 	"github.com/chankei613/agent-config-manager/internal/snapshot"
+	acmsync "github.com/chankei613/agent-config-manager/internal/sync"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"gorm.io/gorm"
 )
@@ -194,6 +195,82 @@ func (a *App) DeleteSnapshot(id int) error {
 		return errNotReady
 	}
 	return snapshot.Delete(a.conn, uint(id))
+}
+
+// ─── 統一・テンプレート（Phase 4） ────────────────────────────────────────────
+
+// PlanUnify は統一で何が起きるかを、何も書き換えずに返す。
+func (a *App) PlanUnify(sourcePath string) ([]snapshot.Change, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+	return acmsync.UnifyPlan(a.conn, sourcePath)
+}
+
+// Unify は sourcePath の内容を、同じ設定を持つ他の場所へ配る。
+func (a *App) Unify(sourcePath string) (*acmsync.UnifyResult, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+
+	result, err := acmsync.Unify(a.conn, sourcePath)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := a.server.Rescan(); err != nil {
+		runtime.LogErrorf(a.ctx, "rescan after unify failed: %s", err)
+	}
+	return result, nil
+}
+
+func (a *App) ListTemplates() ([]db.Template, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+	return acmsync.ListTemplates(a.conn)
+}
+
+func (a *App) CreateTemplate(name, note, project string) (*db.Template, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+	return acmsync.CreateTemplate(a.conn, name, note, project)
+}
+
+func (a *App) GetTemplateFiles(id int) ([]acmsync.TemplateFile, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+	return acmsync.TemplateFiles(a.conn, uint(id))
+}
+
+func (a *App) PlanApplyTemplate(id int, targetDir string) ([]snapshot.Change, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+	return acmsync.ApplyTemplatePlan(a.conn, uint(id), targetDir)
+}
+
+func (a *App) ApplyTemplate(id int, targetDir string) (*acmsync.ApplyResult, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+
+	result, err := acmsync.ApplyTemplate(a.conn, uint(id), targetDir)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := a.server.Rescan(); err != nil {
+		runtime.LogErrorf(a.ctx, "rescan after apply failed: %s", err)
+	}
+	return result, nil
+}
+
+func (a *App) DeleteTemplate(id int) error {
+	if !a.ready {
+		return errNotReady
+	}
+	return acmsync.DeleteTemplate(a.conn, uint(id))
 }
 
 // GetScanRoots は今どこを見ているかをUIに示す。

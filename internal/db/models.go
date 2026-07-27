@@ -54,6 +54,27 @@ type Snapshot struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// Template はよく使う設定セットに名前を付けて保存したもの。
+// 新規プロジェクトに同じ構成を配るために使う。
+type Template struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	Name      string    `gorm:"uniqueIndex;not null" json:"name"`
+	Note      string    `json:"note"`
+	FileCount int       `json:"file_count"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// TemplateEntry はテンプレート1件分の中身。
+// RelPath はプロジェクトルートからの相対パス（例: "CLAUDE.md", ".claude/settings.json"）で、
+// 適用先が変わっても同じ位置に置けるようにしている。
+type TemplateEntry struct {
+	ID         uint   `gorm:"primaryKey" json:"id"`
+	TemplateID uint   `gorm:"index;not null" json:"template_id"`
+	RelPath    string `json:"rel_path"`
+	Kind       string `json:"kind"`
+	Content    []byte `json:"-"` // APIレスポンスには載せない（機密が混ざりうるため）
+}
+
 // SnapshotEntry はスナップショット時点のファイル内容そのもの。
 // 設定ファイルは小さいので、パスとハッシュだけでなく中身を持つことでロールバックを自己完結させる。
 type SnapshotEntry struct {

@@ -449,3 +449,9 @@ code {
 .result {
   margin-bottom: 14px;
 }
+
+.unify-btn {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 2px 10px;
+}

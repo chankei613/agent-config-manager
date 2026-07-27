@@ -114,6 +114,14 @@ export interface RestoreResult {
   errors: string[]
 }
 
+export interface UnifyResult {
+  updated: number
+  skipped: number
+  /** 実行前の自動バックアップ。ここへ戻せば統一を取り消せる */
+  backup_id: number
+  errors: string[]
+}
+
 export interface ScanRoots {
   user: string
   projects: string[]
@@ -134,6 +142,8 @@ interface WailsBindings {
   PlanRestore(id: number): Promise<Change[]>
   RestoreSnapshot(id: number): Promise<RestoreResult>
   DeleteSnapshot(id: number): Promise<void>
+  PlanUnify(sourcePath: string): Promise<Change[]>
+  Unify(sourcePath: string): Promise<UnifyResult>
 }
 
 function bindings(): WailsBindings | null {
@@ -220,6 +230,23 @@ export const api = {
 
   deleteSnapshot: (id: number): Promise<void> =>
     bindings()?.DeleteSnapshot(id) ?? http<void>(`/snapshots/${id}`, { method: 'DELETE' }),
+
+  /** 統一で何が起きるかを、何も書き換えずに取得する */
+  planUnify: (sourcePath: string): Promise<Change[]> =>
+    bindings()?.PlanUnify(sourcePath) ??
+    http<Change[]>('/unify/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_path: sourcePath }),
+    }),
+
+  unify: (sourcePath: string): Promise<UnifyResult> =>
+    bindings()?.Unify(sourcePath) ??
+    http<UnifyResult>('/unify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_path: sourcePath }),
+    }),
 }
 
 /** 種別の日本語表示名 */

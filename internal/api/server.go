@@ -45,6 +45,8 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/snapshots/{id}/restore", s.restoreSnapshot)
 	mux.HandleFunc("DELETE /api/v1/snapshots/{id}", s.deleteSnapshot)
 
+	s.syncRoutes(mux)
+
 	return mux
 }
 
