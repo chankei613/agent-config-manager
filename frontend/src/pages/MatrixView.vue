@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { useInventoryStore } from '@/stores/inventory'
-import { kindLabel, isSensitive } from '@/lib/api'
+import { kindLabel, isSensitive, api } from '@/lib/api'
+import { useViewerStore } from '@/stores/viewer'
 
 const inv = useInventoryStore()
+const viewer = useViewerStore()
+
+/** セルの中身を開く。複数あるときは先頭を開く（一覧はPhase後半で対応） */
+async function openCell(kind: string, project: string) {
+  const files = await api.files(kind, project)
+  if (files.length > 0) viewer.openFile(files[0].path)
+}
 
 function projectLabel(project: string): string {
   return project === '' ? 'ユーザー全体' : project
@@ -32,10 +40,14 @@ function projectLabel(project: string): string {
               <span v-if="isSensitive(kind)" class="sensitive" title="機密情報を含みうる">要注意</span>
             </th>
             <td v-for="project in inv.matrix.projects" :key="project">
-              <template v-if="inv.cellAt(kind, project)">
+              <button
+                v-if="inv.cellAt(kind, project)"
+                class="cell-link"
+                @click="openCell(kind, project)"
+              >
                 <span class="count">{{ inv.cellAt(kind, project)!.count }}</span>
                 <span v-if="!inv.cellAt(kind, project)!.hash" class="mixed">複数</span>
-              </template>
+              </button>
               <span v-else class="none">—</span>
             </td>
           </tr>

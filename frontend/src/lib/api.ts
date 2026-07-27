@@ -122,6 +122,36 @@ export interface UnifyResult {
   errors: string[]
 }
 
+export interface FileContent {
+  path: string
+  kind: string
+  size: number
+  text: string
+  /** 秘密らしき値を伏せたか */
+  masked: boolean
+  truncated: boolean
+  lines: number
+}
+
+export type DiffLineType = 'same' | 'add' | 'del'
+
+export interface DiffLine {
+  type: DiffLineType
+  left_no: number
+  right_no: number
+  text: string
+}
+
+export interface FileDiff {
+  left_path: string
+  right_path: string
+  lines: DiffLine[]
+  added: number
+  deleted: number
+  masked: boolean
+  identical: boolean
+}
+
 export interface ScanRoots {
   user: string
   projects: string[]
@@ -144,6 +174,8 @@ interface WailsBindings {
   DeleteSnapshot(id: number): Promise<void>
   PlanUnify(sourcePath: string): Promise<Change[]>
   Unify(sourcePath: string): Promise<UnifyResult>
+  GetContent(path: string, alwaysMask: boolean): Promise<FileContent>
+  GetDiff(left: string, right: string): Promise<FileDiff>
 }
 
 function bindings(): WailsBindings | null {
@@ -247,6 +279,18 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ source_path: sourcePath }),
     }),
+
+  /** 1ファイルの中身。機密種別は自動でマスクされる */
+  content: (path: string, alwaysMask = false): Promise<FileContent> =>
+    bindings()?.GetContent(path, alwaysMask) ??
+    http<FileContent>(
+      `/content?path=${encodeURIComponent(path)}${alwaysMask ? '&mask=true' : ''}`,
+    ),
+
+  /** 2ファイルの行単位差分 */
+  diffFiles: (left: string, right: string): Promise<FileDiff> =>
+    bindings()?.GetDiff(left, right) ??
+    http<FileDiff>(`/diff?left=${encodeURIComponent(left)}&right=${encodeURIComponent(right)}`),
 }
 
 /** 種別の日本語表示名 */

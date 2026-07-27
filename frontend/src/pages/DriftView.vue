@@ -2,10 +2,12 @@
 import { ref } from 'vue'
 import { useInventoryStore } from '@/stores/inventory'
 import { useUnifyStore } from '@/stores/unify'
+import { useViewerStore } from '@/stores/viewer'
 import { kindLabel } from '@/lib/api'
 
 const inv = useInventoryStore()
 const unify = useUnifyStore()
+const viewer = useViewerStore()
 const showAll = ref(false)
 
 function shortPath(path: string): string {
@@ -55,6 +57,13 @@ async function runUnify() {
           <span class="meta">{{ group.count }}件</span>
           <span class="meta">{{ group.projects.map((p) => p || 'ユーザー全体').join(', ') }}</span>
           <button
+            v-if="d.diverged && index > 0"
+            class="unify-btn"
+            @click="viewer.openDiff(group.paths[0], d.groups[0].paths[0])"
+          >
+            多数派との差分
+          </button>
+          <button
             v-if="d.diverged"
             class="unify-btn"
             @click="unify.preparePlan(group.paths[0])"
@@ -63,7 +72,11 @@ async function runUnify() {
           </button>
         </div>
         <ul class="paths">
-          <li v-for="path in group.paths" :key="path" :title="path">{{ shortPath(path) }}</li>
+          <li v-for="path in group.paths" :key="path">
+            <button class="path-link" :title="path" @click="viewer.openFile(path)">
+              {{ shortPath(path) }}
+            </button>
+          </li>
         </ul>
       </div>
     </div>

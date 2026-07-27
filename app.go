@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 
 	"github.com/chankei613/agent-config-manager/internal/api"
+	"github.com/chankei613/agent-config-manager/internal/content"
 	"github.com/chankei613/agent-config-manager/internal/db"
 	"github.com/chankei613/agent-config-manager/internal/inventory"
 	"github.com/chankei613/agent-config-manager/internal/snapshot"
@@ -271,6 +273,44 @@ func (a *App) DeleteTemplate(id int) error {
 		return errNotReady
 	}
 	return acmsync.DeleteTemplate(a.conn, uint(id))
+}
+
+// ─── 中身の表示・差分 ──────────────────────────────────────────────────────────
+
+// GetContent は1ファイルの中身を返す。
+// 機密種別（settings.local.json / MCP設定）は自動でマスクされる。
+func (a *App) GetContent(path string, alwaysMask bool) (*content.File, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+
+	kind, err := a.kindForPath(path)
+	if err != nil {
+		return nil, err
+	}
+	return content.Read(path, kind, alwaysMask)
+}
+
+// GetDiff は2ファイルの行単位差分を返す。乖離の中身を確認するために使う。
+func (a *App) GetDiff(left, right string) (*content.Diff, error) {
+	if !a.ready {
+		return nil, errNotReady
+	}
+
+	kind, err := a.kindForPath(left)
+	if err != nil {
+		return nil, err
+	}
+	return content.DiffFiles(left, right, kind)
+}
+
+// kindForPath はインベントリに載っているファイルに限定する（任意パスを読ませない）。
+func (a *App) kindForPath(path string) (string, error) {
+	var row db.ConfigFile
+	if err := a.conn.Select("kind").First(&row, "path = ?", path).Error; err != nil {
+		return "", errors.New("インベントリに無いファイルです")
+	}
+	return row.Kind, nil
 }
 
 // GetScanRoots は今どこを見ているかをUIに示す。

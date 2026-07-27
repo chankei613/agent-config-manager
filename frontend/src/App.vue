@@ -7,6 +7,7 @@ import MatrixView from '@/pages/MatrixView.vue'
 import DriftView from '@/pages/DriftView.vue'
 import OrphansView from '@/pages/OrphansView.vue'
 import SnapshotsView from '@/pages/SnapshotsView.vue'
+import ViewerPanel from '@/components/ViewerPanel.vue'
 
 type Tab = 'overview' | 'matrix' | 'drift' | 'orphans' | 'snapshots'
 
@@ -70,5 +71,7 @@ onMounted(() => {
         <SnapshotsView v-else />
       </template>
     </main>
+
+    <ViewerPanel />
   </div>
 </template>
