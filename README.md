@@ -12,7 +12,7 @@ comet-taskAI 製品ロードマップ **Product C**（2026 Q4）。
 どこに何があるか分からず、プロジェクト間で設定が知らないうちに乖離し、
 シンボリックリンクが切れて定義が読み込まれなくなっていても気付けない。
 
-## 現在のステータス: 機能完成（Phase 1〜5 完了。残るはLP・リリースのみ）
+## 現在のステータス: v0.1.0 リリース済み（Phase 1〜6 完了）
 
 - [x] Phase 1: スキャナ基盤（読み取り専用）
   - 設定ファイルの発見・分類（`internal/config`）
@@ -31,7 +31,12 @@ comet-taskAI 製品ロードマップ **Product C**（2026 Q4）。
 - [x] Phase 4: 統一・同期（`internal/sync`）
   - 統一 — 乖離している設定を選んだ内容に揃える（乖離検出からそのまま実行できる）
   - テンプレート — プロジェクトの設定一式を保存して他プロジェクトへ適用
-- [ ] Phase 6: LP・リリース
+- [x] Phase 6: LP・リリース
+
+macOSアプリ（Apple Silicon 版のみ・**未署名**）は
+[GitHub Releases](https://github.com/chankei613/agent-config-manager/releases) から、
+ランディングページは https://agent-config-manager-xi.vercel.app/ から入手できる。
+未署名のため初回起動時は右クリック →「開く」で Gatekeeper を回避する必要がある。
 
 ## 使い方
 
